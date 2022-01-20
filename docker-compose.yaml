@@ -1,0 +1,86 @@
+services:
+
+  db:
+    image: postgres:14.1
+    restart: always
+    depends_on:
+      - logging
+    environment:
+      POSTGRES_PASSWORD_FILE: /etc/postgresql/passwd
+    volumes:
+      - type: bind
+        source: /var/lib/postgresql/data
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: true
+      - type: volume
+        source: sockets
+        target: /var/run
+    configs:
+      - source: init_pgbouncer
+        target: /docker-entrypoint-initdb.d/init-pgbouncer.sh
+    secrets:
+      - source: postgres_password
+        target: /etc/postgresql/passwd
+
+  pooler:
+    image: pgbouncer
+    build: .
+    depends_on:
+      - db
+    volumes:
+      - type: volume
+        source: sockets
+        target: /var/run
+    configs:
+      - source: pgbouncer_ini
+        target: /etc/pgbouncer/pgbouncer.ini
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+
+  logging:
+    image: fluent/fluent-bit:1.8
+    command: ["/fluent-bit/bin/fluent-bit", "-c", "/etc/fluent-bit/fluent-bit.conf"]
+    restart: always
+    volumes:
+      - type: bind
+        source: /var/lib/fluent-bit
+        target: /var/lib/fluent-bit
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /var/lib/docker/containers
+        target: /var/lib/docker/containers
+    configs:
+      - source: fluent_bit_conf
+        target: /etc/fluent-bit/fluent-bit.conf
+      - source: fluent_bit_parsers
+        target: /etc/fluent-bit/parsers.conf
+    secrets:
+      - source: gcp_creds
+        target: /etc/gcp/creds.json
+
+volumes:
+  sockets:
+    driver: local
+
+configs:
+  fluent_bit_conf:
+    file: fluent-bit.conf
+  fluent_bit_parsers:
+    file: parsers.conf
+  init_pgbouncer:
+    file: init-pgbouncer.sh
+  pgbouncer_ini:
+    file: pgbouncer.ini
+
+secrets:
+  gcp_creds:
+    file: creds.json
+  postgres_password:
+    file: passwd
+  userlist_txt:
+    file: passwords/userlist.txt
