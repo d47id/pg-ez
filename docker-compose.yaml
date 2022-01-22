@@ -1,6 +1,6 @@
 services:
 
-  db:
+  database:
     image: postgres:14.1
     restart: always
     depends_on:
@@ -27,7 +27,7 @@ services:
     image: pgbouncer
     build: pooler
     depends_on:
-      - db
+      - database
     volumes:
       - type: volume
         source: sockets
@@ -47,7 +47,7 @@ services:
       context: .
       dockerfile: backup/Dockerfile
     depends_on:
-      - db
+      - database
     environment:
       PGEZ_BUCKET: pictures-of-cats
       PGEZ_SCHEDULE: "03:53"
@@ -92,7 +92,7 @@ configs:
   fluent_bit_parsers:
     file: logger/parsers.conf
   init_pgbouncer:
-    file: init-pgbouncer.sh
+    file: database/init-pgbouncer.sh
   pgbouncer_ini:
     file: pooler/pgbouncer.ini
 
