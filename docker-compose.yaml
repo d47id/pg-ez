@@ -25,7 +25,7 @@ services:
 
   pooler:
     image: pgbouncer
-    build: .
+    build: pooler
     depends_on:
       - db
     volumes:
@@ -40,6 +40,25 @@ services:
         published: 5432
         protocol: tcp
         mode: host
+
+  backup:
+    image: backup
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    depends_on:
+      - db
+    environment:
+      PGEZ_BUCKET: pictures-of-cats
+      PGEZ_SCHEDULE: "03:53"
+      GOOGLE_APPLICATION_CREDENTIALS: /etc/gcp/creds.json
+    volumes:
+      - type: volume
+        source: sockets
+        target: /var/run
+    secrets:
+      - source: gcp_creds
+        target: /etc/gcp/creds.json
 
   logging:
     image: fluent/fluent-bit:1.8
@@ -69,18 +88,16 @@ volumes:
 
 configs:
   fluent_bit_conf:
-    file: fluent-bit.conf
+    file: logger/fluent-bit.conf
   fluent_bit_parsers:
-    file: parsers.conf
+    file: logger/parsers.conf
   init_pgbouncer:
     file: init-pgbouncer.sh
   pgbouncer_ini:
-    file: pgbouncer.ini
+    file: pooler/pgbouncer.ini
 
 secrets:
   gcp_creds:
     file: creds.json
   postgres_password:
     file: passwd
-  userlist_txt:
-    file: passwords/userlist.txt
